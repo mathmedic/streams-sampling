@@ -575,7 +575,27 @@
       const x = mean(idxs.map(idx => SONGS[idx].w));
       sec.history.push({ n: sec.history.length + 1, x, recent: false, simulated: true });
     }
-    renderDotplot(k);
+    [2, 10, 30].forEach(kk => renderDotplot(kk));
+  }
+
+  function computeSharedDomain() {
+    // Base on n=2 (the widest theoretical spread) so all three plots share one comparable scale
+    let domainMin = 0;
+    let domainMax = MU + 5 * theoreticalSD(2);
+    [2, 10, 30].forEach(k => {
+      const values = sections[k].history.map(h => h.x);
+      if (values.length > 0) {
+        domainMin = Math.min(domainMin, Math.min(...values) - 1);
+        domainMax = Math.max(domainMax, Math.max(...values) + 1);
+      }
+    });
+    domainMin = Math.floor(domainMin);
+    domainMax = Math.ceil(domainMax);
+    const range = domainMax - domainMin;
+    let binWidth = Math.max(0.2, range / 40);
+    const niceSteps = [0.2, 0.5, 1, 2, 5];
+    binWidth = niceSteps.find(st => st >= binWidth) || niceSteps[niceSteps.length - 1];
+    return { domainMin, domainMax, range, binWidth };
   }
 
   function renderDotplot(k) {
@@ -586,6 +606,8 @@
 
     document.getElementById('n-caption-' + k).textContent =
       history.length + (history.length === 1 ? ' sample plotted' : ' samples plotted');
+
+    const { domainMin, domainMax, range, binWidth } = computeSharedDomain();
 
     if (history.length === 0) {
       svg.setAttribute('viewBox', `0 0 ${W} 260`);
@@ -600,20 +622,6 @@
     const s = sampleSD(values);
     document.getElementById('sim-mean-' + k).textContent = m.toFixed(2);
     document.getElementById('sim-sd-' + k).textContent = s.toFixed(2);
-
-    const thSD = theoreticalSD(k);
-    let domainMin = 0;
-    let domainMax = MU + 5 * thSD;
-    const dataMin = Math.min(...values), dataMax = Math.max(...values);
-    domainMin = Math.min(domainMin, dataMin - 1);
-    domainMax = Math.max(domainMax, dataMax + 1);
-    domainMin = Math.floor(domainMin);
-    domainMax = Math.ceil(domainMax);
-
-    const range = domainMax - domainMin;
-    let binWidth = Math.max(0.2, range / 40);
-    const niceSteps = [0.2, 0.5, 1, 2, 5];
-    binWidth = niceSteps.find(st => st >= binWidth) || niceSteps[niceSteps.length - 1];
 
     const xScale = v => padL + ((v - domainMin) / range) * (W - padL - padR);
 
